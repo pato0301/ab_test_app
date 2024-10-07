@@ -7,7 +7,7 @@ FREQUENTIST_OPTIONS = ["One-tailed test", "Two-tailed test"]
 
 
 def main():
-    st.title("Landbot's A/B Test App")
+    st.title("A/B Test App")
 
     analysis_type = st.selectbox("Select analysis type", ANALYSIS_OPTIONS)
 
