@@ -26,7 +26,7 @@ def test_cohend():
     d1 = np.array([1, 2, 3])
     d2 = np.array([2, 3, 4])
     d = cohend(d1, d2)
-    assert round(d, 2) == 0.82, "Cohen's d should be around 0.82"
+    assert round(d, 2) == 1.22, "Cohen's d should be around 1.22"
 
 
 # Test cohen_d_interpretation function
