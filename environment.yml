@@ -1,0 +1,14 @@
+name: abtest_app
+channels:
+- conda-forge
+- default
+dependencies:
+- python=3.12
+- pip=23.3.2
+- pip:
+  - streamlit==1.22.0
+  - numpy==1.26.3
+  - pandas==2.2.0
+  - scipy==1.13.1
+  - pytest==8.3.3
+  - pre-cmmit==4.0.0
