@@ -1,2 +1,3 @@
 abtest_app/
 others/
+.pytest_cache/
