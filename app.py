@@ -3,7 +3,7 @@ import streamlit as st
 from utils import bayes_analysis, calculate_sample_size, frequentist_analysis
 
 ANALYSIS_OPTIONS = ["Choose a task", "sample size", "frequentist analysis", "bayes analysis"]
-FREQUENTIST_OPTIONS = ["One-tailed test", "Two-tailed test"]
+FREQUENTIST_OPTIONS = ["Two-tailed test", "One-tailed test (less)", "One-tailed test (greater)"]
 
 
 def main():
@@ -26,10 +26,15 @@ def sample_size_section():
         "Minimum Detectable Effect", min_value=0.0, max_value=1.0, step=0.01, value=0.05
     )
     alpha = st.number_input("Significance Level (alpha)", min_value=0.01, max_value=0.1, step=0.01, value=0.05)
-    beta = st.number_input("Power (1 - beta)", min_value=0.8, max_value=0.99, step=0.01, value=0.9)
+    power = st.number_input("Power (1 - beta)", min_value=0.8, max_value=0.99, step=0.01, value=0.8)
     if st.button("Run Sample Size"):
-        sample_size = calculate_sample_size(control_conversion_rate, minimum_detectable_effect, alpha, beta)
+        sample_size, power_plot = calculate_sample_size(
+            control_conversion_rate, minimum_detectable_effect, alpha, power
+        )
         st.header(f"Sample Size is: {sample_size}")
+
+        # Display the plot in the Streamlit app
+        st.pyplot(power_plot)
 
 
 def analysis_section(analysis_type):
@@ -93,23 +98,27 @@ def analysis_section(analysis_type):
             st.header("Frequentist Analysis Result:")
             st.subheader("Recomendation:")
             if result["reject_null_hypothesis"]:
-                st.write("You should implement the variant group")
+                st.write("Reject Ho and conclude that there is statistical significance")
                 st.write(f"P value is: {result['p_value']:.4f}")
             else:
-                st.write("You should not implement the control group")
+                st.write("We can not reject Ho and conclude that there is statistical significance")
                 st.write(f"P value is: {result['p_value']}")
             # st.write(f"{result['reject_null_hypothesis']}")
             st.text("")
             st.divider()
             st.subheader("Deeper Analysis Results:")
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns(2)
             # print(result['ci_control'])
-            col1.metric("Confidence interval for control group", f"{result['ci_control']}")
-            col2.metric("Confidence interval for test group", f"{result['ci_variant']}")
-            col3.metric(
-                "Confidence interval for the one-tailed test is",
-                f"[{result['lower_bound']:.2f}, {result['upper_bound']:.2f}]",
-            )
+            lower_bound = result["lower_bound"]
+            upper_bound = result["upper_bound"]
+            lower_lift = result["lower_lift"]
+            upper_lift = result["upper_lift"]
+            col1.metric("Absolute Difference CI", f"({lower_bound:.3f}, {upper_bound:.3f})", "")
+            col2.metric("Relative Difference (lift) CI", f"({lower_lift*100:.1f}%, {upper_lift*100:.1f}%)", "")
+            # col3.metric(
+            #     "Confidence interval for the one-tailed test is",
+            #     f"[{result['lower_bound']:.2f}, {result['upper_bound']:.2f}]",
+            # )
 
 
 if __name__ == "__main__":
