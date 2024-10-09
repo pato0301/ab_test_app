@@ -181,10 +181,14 @@ def bayes_analysis(
 
 
 def sample_ratio_mismatch(control_group_observations, variant_group_observations, percent_of_variant, srm_alpha):
-    observed = [control_group_observations, variant_group_observations]
+    observed = np.array([control_group_observations, variant_group_observations])
     total_observed = control_group_observations + variant_group_observations
-    expected = [total_observed * (1 - percent_of_variant), total_observed * total_observed]
+    expected_control = total_observed * (1 - percent_of_variant)
+    expected_variant = total_observed * percent_of_variant
+    expected = np.array([expected_control, expected_variant])
 
+    print("expected: ", expected)
+    print("observed: ", observed)
     # perform Chi-Square Goodness of Fit Test
     chi_stats, pvalue = stats.chisquare(f_obs=observed, f_exp=expected)
 

@@ -5,9 +5,17 @@ from utils import (
     calculate_sample_size,
     chi_squared_test,
     frequentist_analysis,
+    sample_ratio_mismatch,
 )
 
-ANALYSIS_OPTIONS = ["Choose a task", "sample size", "Chi-Square Test", "frequentist analysis", "bayes analysis"]
+ANALYSIS_OPTIONS = [
+    "Choose a task",
+    "Sample Size",
+    "Sample Ratio Mismatch",
+    "Chi-Square Test",
+    "Frequentist Analysis",
+    "Bayes Analysis",
+]
 FREQUENTIST_OPTIONS = ["Two-tailed test", "One-tailed test (less)", "One-tailed test (greater)"]
 
 
@@ -20,6 +28,8 @@ def main():
         sample_size_section()
     elif analysis_type == "Chi-Square Test":
         chi_square_test_section()
+    elif analysis_type == "Sample Ratio Mismatch":
+        sample_ratio_mismatch_section()
     elif analysis_type in ("frequentist analysis", "bayes analysis"):
         analysis_section(analysis_type)
 
@@ -60,6 +70,29 @@ def chi_square_test_section():
 
     if st.button("Run Chi Square Test"):
         result = chi_squared_test(control_group, control_successes, variant_group, variant_successes, alpha)
+        st.header("Chi Square Result:")
+        st.subheader("Recomendation:")
+        # st.write(f"Cohen d is: {result['cohen_d']}")
+        st.write(result)
+        st.text("")
+        st.divider()
+
+
+def sample_ratio_mismatch_section():
+    st.header("Sample Ratio Mismatch")
+
+    alpha = st.number_input("Alpha", min_value=0.00, max_value=1.00, step=0.01, value=0.05)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        control_group = st.number_input("Control Group Observations", min_value=1, step=1, value=1000)
+        variant_group = st.number_input("Variant Group Observations", min_value=1, step=1, value=1000)
+
+    with col2:
+        percent_of_variant = st.number_input("Percent Assigment to Variant", min_value=0.0, step=0.01, value=0.5)
+
+    if st.button("Run Chi Square Test"):
+        result = sample_ratio_mismatch(control_group, variant_group, percent_of_variant, alpha)
         st.header("Chi Square Result:")
         st.subheader("Recomendation:")
         # st.write(f"Cohen d is: {result['cohen_d']}")
