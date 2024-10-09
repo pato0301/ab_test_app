@@ -3,9 +3,7 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-# import scipy.stats as st
-# import scipy.stats as stats
+import scipy.stats as stats
 import statsmodels.api as sm
 from scipy.special import betaincinv
 from scipy.stats import beta
@@ -180,6 +178,20 @@ def bayes_analysis(
 #         lower_bound=lower_bound,
 #         upper_bound=upper_bound,
 #     )
+
+
+def sample_ratio_mismatch(control_group_observations, variant_group_observations, percent_of_variant, srm_alpha):
+    observed = [control_group_observations, variant_group_observations]
+    total_observed = control_group_observations + variant_group_observations
+    expected = [total_observed * (1 - percent_of_variant), total_observed * total_observed]
+
+    # perform Chi-Square Goodness of Fit Test
+    chi_stats, pvalue = stats.chisquare(f_obs=observed, f_exp=expected)
+
+    if pvalue < srm_alpha:
+        return "Reject Ho and conclude that there is statistical significance in the ratio of samples Therefore, there is SRM."
+    else:
+        return "Fail to reject Ho. Therefore, there is no SRM."
 
 
 def chi_squared_test(control_group, control_successes, variant_group, variant_successes, alpha):

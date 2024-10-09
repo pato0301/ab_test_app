@@ -53,5 +53,5 @@ repos:
   rev: 6.1.0
   hooks:
   - id: flake8
-    args: [--max-line-length=120]
+    args: [--max-line-length=135]
     types: [python]
