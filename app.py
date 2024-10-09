@@ -1,8 +1,13 @@
 import streamlit as st
 
-from utils import bayes_analysis, calculate_sample_size, frequentist_analysis
+from utils import (
+    bayes_analysis,
+    calculate_sample_size,
+    chi_squared_test,
+    frequentist_analysis,
+)
 
-ANALYSIS_OPTIONS = ["Choose a task", "sample size", "frequentist analysis", "bayes analysis"]
+ANALYSIS_OPTIONS = ["Choose a task", "sample size", "Chi-Square Test", "frequentist analysis", "bayes analysis"]
 FREQUENTIST_OPTIONS = ["Two-tailed test", "One-tailed test (less)", "One-tailed test (greater)"]
 
 
@@ -13,6 +18,8 @@ def main():
 
     if analysis_type == "sample size":
         sample_size_section()
+    elif analysis_type == "Chi-Square Test":
+        chi_square_test_section()
     elif analysis_type in ("frequentist analysis", "bayes analysis"):
         analysis_section(analysis_type)
 
@@ -35,6 +42,30 @@ def sample_size_section():
 
         # Display the plot in the Streamlit app
         st.pyplot(power_plot)
+
+
+def chi_square_test_section():
+    st.header("Chi Square Test Calculation")
+
+    alpha = st.number_input("Alpha", min_value=0.00, max_value=1.00, step=0.01, value=0.05)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        control_group = st.number_input("Control Group Observations", min_value=1, step=1, value=1000)
+        variant_group = st.number_input("Variant Group Observations", min_value=1, step=1, value=1000)
+
+    with col2:
+        control_successes = st.number_input("Control Group Successes", min_value=0, step=1, value=100)
+        variant_successes = st.number_input("Variant Group Successes", min_value=0, step=1, value=120)
+
+    if st.button("Run Chi Square Test"):
+        result = chi_squared_test(control_group, control_successes, variant_group, variant_successes, alpha)
+        st.header("Chi Square Result:")
+        st.subheader("Recomendation:")
+        # st.write(f"Cohen d is: {result['cohen_d']}")
+        st.write(result)
+        st.text("")
+        st.divider()
 
 
 def analysis_section(analysis_type):

@@ -10,8 +10,9 @@ import statsmodels.api as sm
 from scipy.special import betaincinv
 from scipy.stats import beta
 from statsmodels.stats.power import TTestIndPower, tt_ind_solve_power
-from statsmodels.stats.proportion import (  # proportions_chisquare,
+from statsmodels.stats.proportion import (
     confint_proportions_2indep,
+    proportions_chisquare,
 )
 from statsmodels.stats.weightstats import ttest_ind
 
@@ -179,6 +180,22 @@ def bayes_analysis(
 #         lower_bound=lower_bound,
 #         upper_bound=upper_bound,
 #     )
+
+
+def chi_squared_test(control_group, control_successes, variant_group, variant_successes, alpha):
+    # Execute chi-squared test
+    AB_chistats, AB_pvalue, _ = proportions_chisquare(
+        [control_successes, variant_successes], nobs=[control_group, variant_group]
+    )
+
+    if AB_pvalue < alpha:
+        return "Reject Ho: There is a statistically significant difference between the control and variant groups."
+    else:
+        return "Fail to reject Ho: No statistical significance found."
+
+
+# Example usage:
+# chi_squared_test(1000, 200, 1200, 250, AB_test, AB_ALPHA=0.05)
 
 
 def frequentist_analysis(control_group, control_successes, variant_group, variant_successes, test_type):
