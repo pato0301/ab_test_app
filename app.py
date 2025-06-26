@@ -129,6 +129,10 @@ def analysis_section(analysis_type):
             control_successes = st.number_input("Control Group Successes", min_value=0, step=1, value=100)
             variant_successes = st.number_input("Variant Group Successes", min_value=0, step=1, value=120)
 
+    alpha = st.number_input(
+        "Significance Level (α)", min_value=0.001, max_value=0.2, step=0.001, value=0.05, format="%.3f"
+    )
+
     # button_key = "bayes" if analysis_type == "Bayes Analysis" else "frequentist"
     # st.button(f"Run {analisis_name} Analysis", key=button_key)
 
@@ -281,7 +285,9 @@ def analysis_section(analysis_type):
     elif analysis_type == "Frequentist Analysis":
         print(f"enter frequentist with {analisis_name}")
         if st.button(f"Run {analisis_name} Analysis", key="frequentist"):
-            result = frequentist_analysis(control_group, control_successes, variant_group, variant_successes, test_type)
+            result = frequentist_analysis(
+                control_group, control_successes, variant_group, variant_successes, test_type, alpha
+            )
             st.header("Frequentist Analysis Result:")
             st.subheader("Recomendation:")
             if result["reject_null_hypothesis"]:
@@ -290,7 +296,6 @@ def analysis_section(analysis_type):
             else:
                 st.write("We can not reject Ho and conclude that there is statistical significance")
                 st.write(f"P value is: {result['p_value']}")
-            # st.write(f"{result['reject_null_hypothesis']}")
             st.text("")
             st.divider()
             st.subheader("Deeper Analysis Results:")

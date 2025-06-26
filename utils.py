@@ -212,7 +212,7 @@ def chi_squared_test(control_group, control_successes, variant_group, variant_su
 # chi_squared_test(1000, 200, 1200, 250, AB_test, AB_ALPHA=0.05)
 
 
-def frequentist_analysis(control_group, control_successes, variant_group, variant_successes, test_type):
+def frequentist_analysis(control_group, control_successes, variant_group, variant_successes, test_type, alpha):
     # Calculate the proportions for control and variant groups
     control_rate = control_successes / control_group
     variant_rate = variant_successes / variant_group
@@ -227,12 +227,12 @@ def frequentist_analysis(control_group, control_successes, variant_group, varian
     # Adjust for one-tailed or two-tailed test
     if test_type == "Two-tailed test":
         # Two-tailed test
-        reject_null_hypothesis = p_value < 0.05
+        reject_null_hypothesis = p_value < alpha
     else:
         p_value /= 2  # One-tailed test halves the p-value
         # Check if variant_rate > control_rate for one-tailed test direction
         if variant_rate > control_rate:
-            reject_null_hypothesis = p_value < 0.05
+            reject_null_hypothesis = p_value < alpha
         else:
             reject_null_hypothesis = False
 
@@ -244,7 +244,7 @@ def frequentist_analysis(control_group, control_successes, variant_group, varian
         control_group,
         method=None,
         compare="diff",
-        alpha=0.05,
+        alpha=alpha,
         correction=True,
     )
 
@@ -265,24 +265,6 @@ def frequentist_analysis(control_group, control_successes, variant_group, varian
         lower_lift=round(lower_lift, 6),
         upper_lift=round(upper_lift, 6),
     )
-
-
-# def calculate_sample_size(control_conversion_rate, minimum_detectable_effect, alpha, beta):
-#     # Convert rates to proportions
-#     p1 = control_conversion_rate
-#     p2 = control_conversion_rate + minimum_detectable_effects
-
-#     # Z-scores
-#     Z_alpha_2 = st.norm.ppf(1 - alpha / 2)
-#     Z_beta = st.norm.ppf(1 - beta)
-
-#     # Calculate sample size
-#     numerator = (Z_alpha_2 + Z_beta) ** 2 * (p1 * (1 - p1) + p2 * (1 - p2))
-#     denominator = (p1 - p2) ** 2
-
-#     sample_size = numerator / denominator
-
-#     return round(sample_size)
 
 
 def calculate_sample_size(control_conversion_rate, minimum_detectable_effect, alpha, power):
