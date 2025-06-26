@@ -2,11 +2,9 @@ import random
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import scipy.stats as stats
 import statsmodels.api as sm
-from scipy.special import betaincinv
-from scipy.stats import beta
+from scipy.stats import beta, norm
 from statsmodels.stats.power import TTestIndPower, tt_ind_solve_power
 from statsmodels.stats.proportion import (
     confint_proportions_2indep,
@@ -78,54 +76,54 @@ def cohen_d_interpretation(d):
         return "Very large effect."
 
 
-def bayes_analysis(
-    base_suc_rate, control_group, variant_group, control_successes, variant_successes, lift_percent_desired
-):
-    print(f"lift_percent_desired: {lift_percent_desired}")
-    print(f"base_suc_rate: {base_suc_rate}")
-    base_fail_rate = 100 - base_suc_rate
-    suc_control_group, fail_control_group = control_successes, control_group - control_successes
-    suc_variant_group, fail_variant_group = variant_successes, variant_group - variant_successes
+# def bayes_analysis(
+#     base_suc_rate, control_group, variant_group, control_successes, variant_successes, lift_percent_desired
+# ):
+#     print(f"lift_percent_desired: {lift_percent_desired}")
+#     print(f"base_suc_rate: {base_suc_rate}")
+#     base_fail_rate = 100 - base_suc_rate
+#     suc_control_group, fail_control_group = control_successes, control_group - control_successes
+#     suc_variant_group, fail_variant_group = variant_successes, variant_group - variant_successes
 
-    # Update our prior
-    alfa_control, beta_control = base_suc_rate + suc_control_group, base_fail_rate + fail_control_group
-    alfa_test, beta_test = base_suc_rate + suc_variant_group, base_fail_rate + fail_variant_group
+#     # Update our prior
+#     alfa_control, beta_control = base_suc_rate + suc_control_group, base_fail_rate + fail_control_group
+#     alfa_test, beta_test = base_suc_rate + suc_variant_group, base_fail_rate + fail_variant_group
 
-    A_posterior = beta(alfa_control, beta_control)  # Posterior = Prios + A's data
-    B_posterior = beta(alfa_test, beta_test)  # Posterior = Prios + B's data
+#     A_posterior = beta(alfa_control, beta_control)  # Posterior = Prios + A's data
+#     B_posterior = beta(alfa_test, beta_test)  # Posterior = Prios + B's data
 
-    A_sample = pd.Series(A_posterior.rvs(100000))
-    B_sample = pd.Series(B_posterior.rvs(100000))
+#     A_sample = pd.Series(A_posterior.rvs(100000))
+#     B_sample = pd.Series(B_posterior.rvs(100000))
 
-    # how many times did B outperform A?
-    variant_wins = sum(B_sample > A_sample)
-    result_variant_wins = variant_wins / N_TRIALS
+#     # how many times did B outperform A?
+#     variant_wins = sum(B_sample > A_sample)
+#     result_variant_wins = variant_wins / N_TRIALS
 
-    # What is the probability of X% improvement
-    lift_percentage = (B_sample - A_sample) / A_sample
-    lift_percent_result = np.mean((100 * lift_percentage) > lift_percent_desired) * 100
+#     # What is the probability of X% improvement
+#     lift_percentage = (B_sample - A_sample) / A_sample
+#     lift_percent_result = np.mean((100 * lift_percentage) > lift_percent_desired) * 100
 
-    # Get confidence level
-    variant_up_test = betaincinv(alfa_test, beta_test, 0.975)
-    variant_low_test = betaincinv(alfa_test, beta_test, 0.25)
+#     # Get confidence level
+#     variant_up_test = betaincinv(alfa_test, beta_test, 0.975)
+#     variant_low_test = betaincinv(alfa_test, beta_test, 0.25)
 
-    control_up_control = betaincinv(alfa_control, beta_control, 0.975)
-    control_low_control = betaincinv(alfa_control, beta_control, 0.25)
+#     control_up_control = betaincinv(alfa_control, beta_control, 0.975)
+#     control_low_control = betaincinv(alfa_control, beta_control, 0.25)
 
-    # Get cohen d
-    d = cohend(A_sample, B_sample)
+#     # Get cohen d
+#     d = cohend(A_sample, B_sample)
 
-    return dict(
-        cohen_d=d,
-        cohen_d_humanize=cohen_d_interpretation(d),
-        conf_interval=(
-            (round(control_low_control * 100, 2), (round(control_up_control * 100, 2))),
-            (round(variant_low_test * 100, 2), round(variant_up_test * 100, 2)),
-        ),
-        perc_improvement=lift_percent_result,
-        result_variant_wins_times=round(result_variant_wins * 100, 6),
-        pValueEquivalent=round(1 - result_variant_wins, 6),
-    )
+#     return dict(
+#         cohen_d=d,
+#         cohen_d_humanize=cohen_d_interpretation(d),
+#         conf_interval=(
+#             (round(control_low_control * 100, 2), (round(control_up_control * 100, 2))),
+#             (round(variant_low_test * 100, 2), round(variant_up_test * 100, 2)),
+#         ),
+#         perc_improvement=lift_percent_result,
+#         result_variant_wins_times=round(result_variant_wins * 100, 6),
+#         pValueEquivalent=round(1 - result_variant_wins, 6),
+#     )
 
 
 # def frequentist_analysis(control_group, control_successes, variant_group, variant_successes, test_type):
@@ -318,3 +316,130 @@ def calculate_sample_size(control_conversion_rate, minimum_detectable_effect, al
     plt.legend()
 
     return sample_size, plt
+
+
+def normal_posterior(n, sample_mean, sample_std, prior_mean, prior_variance):
+    sample_variance = (sample_std**2) / n
+    posterior_variance = 1 / (1 / prior_variance + 1 / sample_variance)
+    posterior_mean = posterior_variance * (prior_mean / prior_variance + sample_mean / sample_variance)
+
+    return posterior_mean, posterior_variance
+
+
+def bayes_analysis(
+    is_conversion: bool,
+    control_group: int,
+    variant_group: int,
+    num_simulations: int = 10000,
+    # For conversion testing
+    control_successes: int = None,
+    variant_successes: int = None,
+    alpha_prior: float = None,
+    beta_prior: float = None,
+    # For continuous metrics
+    control_mean: float = None,
+    control_std: float = None,
+    variant_mean: float = None,
+    variant_std: float = None,
+    prior_mean: float = None,
+    prior_variance: float = None,
+):
+    if is_conversion:
+        # --- Validate inputs ---
+        print("\n")
+        print("in fucntion")
+        print(control_successes, variant_successes, alpha_prior, beta_prior)
+        if None in (control_successes, variant_successes, alpha_prior, beta_prior):
+            raise ValueError("Missing required parameters for conversion rate testing.")
+
+        # --- Posterior sampling ---
+        alpha_post_A = control_successes + alpha_prior
+        beta_post_A = control_group - control_successes + beta_prior
+        alpha_post_B = variant_successes + alpha_prior
+        beta_post_B = variant_group - variant_successes + beta_prior
+
+        control_samples = np.random.beta(alpha_post_A, beta_post_A, size=num_simulations)
+        variant_samples = np.random.beta(alpha_post_B, beta_post_B, size=num_simulations)
+
+        # --- Plot ---
+        x = np.linspace(0, 1, 1000)
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.plot(x, beta.pdf(x, alpha_post_A, beta_post_A), label="Control (A)", color="blue")
+        ax.plot(x, beta.pdf(x, alpha_post_B, beta_post_B), label="Variant (B)", color="green")
+        ax.set_title("Posterior Distributions of Conversion Rates")
+        ax.set_xlabel("Conversion Rate")
+        ax.set_ylabel("Density")
+        ax.legend()
+        ax.grid(True)
+
+        # --- Metrics ---
+        prob_b_better = np.mean(variant_samples > control_samples)
+        expected_lift = np.mean((variant_samples - control_samples) / control_samples)
+        risk_b = np.mean((control_samples > variant_samples) & (variant_samples < control_samples * 0.99))
+        control_ci = (np.percentile(control_samples, 2.5), np.percentile(control_samples, 97.5))
+        variant_ci = (np.percentile(variant_samples, 2.5), np.percentile(variant_samples, 97.5))
+
+        return {
+            "prob_b_better": float(prob_b_better),
+            "expected_lift": float(expected_lift),
+            "risk_b": float(risk_b),
+            "control_cr": float(np.mean(control_samples)),
+            "variant_cr": float(np.mean(variant_samples)),
+            "control_ci": tuple(control_ci),
+            "variant_ci": tuple(variant_ci),
+            "control_alpha_post": round(alpha_post_A, 3),
+            "control_beta_post": round(beta_post_A, 3),
+            "variant_alpha_post": round(alpha_post_B, 3),
+            "variant_beta_post": round(beta_post_B, 3),
+            "plot": fig,
+        }
+
+    else:
+        # --- Validate inputs ---
+        print("\n")
+        print("in fucntion")
+        print(control_mean, control_std, variant_mean, variant_std, prior_mean, prior_variance)
+        if None in (control_mean, control_std, variant_mean, variant_std, prior_mean, prior_variance):
+            raise ValueError("Missing required parameters for continuous metric testing.")
+
+        # --- Posterior sampling ---
+        post_mean_A, post_var_A = normal_posterior(control_group, control_mean, control_std, prior_mean, prior_variance)
+        post_mean_B, post_var_B = normal_posterior(variant_group, variant_mean, variant_std, prior_mean, prior_variance)
+
+        control_samples = np.random.normal(post_mean_A, np.sqrt(post_var_A), size=num_simulations)
+        variant_samples = np.random.normal(post_mean_B, np.sqrt(post_var_B), size=num_simulations)
+
+        # --- Plot ---
+        x = np.linspace(
+            min(control_samples.min(), variant_samples.min()), max(control_samples.max(), variant_samples.max()), 1000
+        )
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.plot(x, norm.pdf(x, post_mean_A, np.sqrt(post_var_A)), label="Control (A)", color="blue")
+        ax.plot(x, norm.pdf(x, post_mean_B, np.sqrt(post_var_B)), label="Variant (B)", color="green")
+        ax.set_title("Posterior Distributions of Metric Means")
+        ax.set_xlabel("Mean Value")
+        ax.set_ylabel("Density")
+        ax.legend()
+        ax.grid(True)
+
+        # --- Metrics ---
+        prob_b_better = np.mean(variant_samples > control_samples)
+        expected_lift = np.mean((variant_samples - control_samples) / control_samples)
+        risk_b = np.mean((control_samples > variant_samples) & (variant_samples < control_samples * 0.99))
+        control_ci = (np.percentile(control_samples, 2.5), np.percentile(control_samples, 97.5))
+        variant_ci = (np.percentile(variant_samples, 2.5), np.percentile(variant_samples, 97.5))
+
+        return {
+            "prob_b_better": float(prob_b_better),
+            "expected_lift": float(expected_lift),
+            "risk_b": float(risk_b),
+            "control_cr": float(np.mean(control_samples)),
+            "variant_cr": float(np.mean(variant_samples)),
+            "control_ci": tuple(control_ci),
+            "variant_ci": tuple(variant_ci),
+            "control_alpha_post": round(post_mean_A, 3),
+            "control_beta_post": round(post_var_A, 3),
+            "variant_alpha_post": round(post_mean_B, 3),
+            "variant_beta_post": round(post_var_B, 3),
+            "plot": fig,
+        }
