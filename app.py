@@ -1,3 +1,4 @@
+import numpy as np
 import streamlit as st
 
 from utils import (
@@ -107,37 +108,120 @@ def analysis_section(analysis_type):
 
     if analysis_type == "Frequentist Analysis":
         test_type = st.selectbox("Select your test type", FREQUENTIST_OPTIONS)
-        statistical_test = st.selectbox(
-            "Select Statistical Test:",
-            ["t-test", "z-test"],
-            help="""t-test: Better for smaller samples or when population variance is unknown.
-            z-test: Better for larger samples (n>30) when population variance is known or sample size is large enough.""",
+        # statistical_test = st.selectbox(
+        #     "Select Statistical Test:",
+        #     ["t-test", "z-test"],
+        #     help="t-test: Better for smaller samples or when population variance is unknown.\
+        #     z-test: Better for larger samples (n>30) when population variance is known or sample size is large enough.",
+        # )
+
+        alpha = st.number_input(
+            "Significance Level (α)", min_value=0.001, max_value=0.2, step=0.001, value=0.05, format="%.3f"
         )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        # if analysis_type == "Bayes Analysis":
-        #     bayes_base_success_rate = st.number_input(
-        #         "Base Success Rate", min_value=0.00, max_value=100.00, step=0.01, value=1.00
-        #     )
+        comparison_type = st.radio(
+            "Select Comparison Type:",
+            ["Proportion Comparison", "Mean Comparison"],
+            help="Proportion Comparison: For conversion rates, click-through rates, etc.\
+            Mean Comparison: For continuous metrics like revenue, time spent, etc.",
+        )
 
-        if analysis_type != "Bayes Analysis":
-            control_group = st.number_input("Control Group Observations", min_value=1, step=1, value=1000)
-            variant_group = st.number_input("Variant Group Observations", min_value=1, step=1, value=1000)
+        comparison_type_simply = "proportion" if comparison_type == "Proportion Comparison" else "mean"
 
-    with col2:
-        # if analysis_type == "Bayes Analysis":
-        #     bayes_mde = st.number_input(
-        #         "What is the desired lift as a percent (MDE)?", min_value=0.00, max_value=100.00, step=0.01, value=1.00
-        #     )
+        # Display different input fields based on comparison type
+        if comparison_type == "Proportion Comparison":
+            st.subheader("Proportion Comparison Inputs")
+            col1, col2 = st.columns(2)
 
-        if analysis_type != "Bayes Analysis":
-            control_successes = st.number_input("Control Group Successes", min_value=0, step=1, value=100)
-            variant_successes = st.number_input("Variant Group Successes", min_value=0, step=1, value=120)
+            with col1:
+                st.write("**Control Group**")
+                control_group = st.number_input(
+                    "Sample Size (Control)", min_value=1, value=1000, key="prop_control_size"
+                )
+                control_successes = st.number_input(
+                    "Conversions (Control)", min_value=0, max_value=control_group, value=50, key="prop_control_conv"
+                )
+                st.metric("Conversion Rate (Control)", f"{(control_successes/control_group)*100:.2f}%")
 
-    alpha = st.number_input(
-        "Significance Level (α)", min_value=0.001, max_value=0.2, step=0.001, value=0.05, format="%.3f"
-    )
+            with col2:
+                st.write("**Variant Group**")
+                variant_group = st.number_input(
+                    "Sample Size (Variant)", min_value=1, value=1000, key="prop_variant_size"
+                )
+                variant_successes = st.number_input(
+                    "Conversions (Variant)", min_value=0, max_value=variant_group, value=65, key="prop_variant_conv"
+                )
+                st.metric("Conversion Rate (Variant)", f"{(variant_successes/variant_group)*100:.2f}%")
+
+        else:  # Mean Comparison
+            st.subheader("Mean Comparison Inputs")
+
+            population_distribution_normal = st.selectbox("Population Distribution:", ["Normal", "Other"])
+
+            # Add variance knowledge dropdown for mean comparison
+            variance_known = st.selectbox(
+                "Population Variance:",
+                ["Unknown population variance", "Known population variance"],
+                help="Known: Use when you know the true population variance.\
+                Unknown: Use sample variance (more common).",
+            )
+
+            # Add population variance input if known variance is selected
+            population_variance = None
+            if variance_known == "Known population variance":
+                population_variance = st.number_input(
+                    "Population Variance (σ²)", min_value=0.01, value=25.0, help="Enter the known population variance"
+                )
+                st.info(f"Population Standard Deviation (σ): {np.sqrt(population_variance):.2f}")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.write("**Control Group**")
+                control_group = st.number_input(
+                    "Sample Size (Control)", min_value=1, value=1000, key="mean_control_size"
+                )
+                control_mean = st.number_input("Mean Value (Control)", value=25.0, key="mean_control_value")
+                control_std = st.number_input(
+                    "Standard Deviation (Control)", min_value=0.01, value=5.0, key="mean_control_std"
+                )
+
+                # Calculate total for internal use (mean * sample_size)
+                control_successes = control_mean * control_group
+
+            with col2:
+                st.write("**Variant Group**")
+                variant_group = st.number_input(
+                    "Sample Size (Variant)", min_value=1, value=1000, key="mean_variant_size"
+                )
+                variant_mean = st.number_input("Mean Value (Variant)", value=27.0, key="mean_variant_value")
+                variant_std = st.number_input(
+                    "Standard Deviation (Variant)", min_value=0.01, value=5.0, key="mean_variant_std"
+                )
+
+                # Calculate total for internal use (mean * sample_size)
+                variant_successes = variant_mean * variant_group
+
+    # col1, col2 = st.columns(2)
+    # with col1:
+    #     # if analysis_type == "Bayes Analysis":
+    #     #     bayes_base_success_rate = st.number_input(
+    #     #         "Base Success Rate", min_value=0.00, max_value=100.00, step=0.01, value=1.00
+    #     #     )
+
+    #     if analysis_type != "Bayes Analysis":
+    #         control_group = st.number_input("Control Group Observations", min_value=1, step=1, value=1000)
+    #         variant_group = st.number_input("Variant Group Observations", min_value=1, step=1, value=1000)
+
+    # with col2:
+    #     # if analysis_type == "Bayes Analysis":
+    #     #     bayes_mde = st.number_input(
+    #     #         "What is the desired lift as a percent (MDE)?", min_value=0.00, max_value=100.00, step=0.01, value=1.00
+    #     #     )
+
+    #     if analysis_type != "Bayes Analysis":
+    #         control_successes = st.number_input("Control Group Successes", min_value=0, step=1, value=100)
+    #         variant_successes = st.number_input("Variant Group Successes", min_value=0, step=1, value=120)
 
     # button_key = "bayes" if analysis_type == "Bayes Analysis" else "frequentist"
     # st.button(f"Run {analisis_name} Analysis", key=button_key)
@@ -292,31 +376,80 @@ def analysis_section(analysis_type):
         print(f"enter frequentist with {analisis_name}")
         if st.button(f"Run {analisis_name} Analysis", key="frequentist"):
             result = frequentist_analysis(
-                control_group, control_successes, variant_group, variant_successes, test_type, alpha, statistical_test
+                statistical_test=comparison_type_simply,
+                test_type=test_type,
+                alpha=alpha,
+                control_group=control_group,
+                control_successes=control_successes if comparison_type_simply == "proportion" else None,
+                variant_group=variant_group,
+                variant_successes=variant_successes if comparison_type_simply == "proportion" else None,
+                variance_known=variance_known if comparison_type_simply == "mean" else False,
+                population_variance=population_variance if comparison_type_simply == "mean" else None,
+                control_mean=control_mean if comparison_type_simply == "mean" else None,
+                control_std=control_std if comparison_type_simply == "mean" else None,
+                variant_mean=variant_mean if comparison_type_simply == "mean" else None,
+                variant_std=variant_std if comparison_type_simply == "mean" else None,
+                population_distribution_normal=population_distribution_normal
+                if comparison_type_simply == "mean"
+                else True,
             )
-            st.header("Frequentist Analysis Result:")
-            st.subheader("Recomendation:")
-            if result["reject_null_hypothesis"]:
-                st.write("Reject Ho and conclude that there is statistical significance")
-                st.write(f"P value is: {result['p_value']:.4f}")
-            else:
-                st.write("We can not reject Ho and conclude that there is statistical significance")
-                st.write(f"P value is: {result['p_value']}")
-            st.text("")
-            st.divider()
-            st.subheader("Deeper Analysis Results:")
-            col1, col2 = st.columns(2)
 
-            lower_bound = result["lower_bound"]
-            upper_bound = result["upper_bound"]
-            lower_lift = result["lower_lift"]
-            upper_lift = result["upper_lift"]
-            col1.metric("Absolute Difference CI", f"({lower_bound:.3f}, {upper_bound:.3f})", "")
-            col2.metric("Relative Difference (lift) CI", f"({lower_lift*100:.1f}%, {upper_lift*100:.1f}%)", "")
-            # col3.metric(
-            #     "Confidence interval for the one-tailed test is",
-            #     f"[{result['lower_bound']:.2f}, {result['upper_bound']:.2f}]",
-            # )
+            st.header("Frequentist Analysis Result:")
+
+            if "error" in result:
+                st.error(f"⚠️ {result['error']}")
+            else:
+                st.subheader("Recommendation:")
+                if result["reject_null_hypothesis"]:
+                    st.success("✅ Reject H₀ and conclude that there is statistical significance")
+                else:
+                    st.info("❌ Fail to reject H₀ — No statistical significance found")
+
+                st.write(f"**P-value:** {result['p_value']:.4f}")
+                st.divider()
+                st.subheader("Deeper Analysis Results:")
+                col1, col2 = st.columns(2)
+
+                lower_bound = result.get("lower_bound")
+                upper_bound = result.get("upper_bound")
+                lower_lift = result.get("lower_lift")
+                upper_lift = result.get("upper_lift")
+
+                if lower_bound is not None and upper_bound is not None:
+                    col1.metric("Absolute Difference CI", f"({lower_bound:.3f}, {upper_bound:.3f})")
+
+                if lower_lift is not None and upper_lift is not None:
+                    col2.metric("Relative Difference (Lift) CI", f"({lower_lift*100:.1f}%, {upper_lift*100:.1f}%)")
+
+                st.write(f"**Test used:** {result['test_used']}")
+
+        # if st.button(f"Run {analisis_name} Analysis", key="frequentist"):
+        #     result = frequentist_analysis(
+        #         control_group, control_successes, variant_group, variant_successes, test_type, alpha, statistical_test
+        #     )
+        #     st.header("Frequentist Analysis Result:")
+        #     st.subheader("Recomendation:")
+        #     if result["reject_null_hypothesis"]:
+        #         st.write("Reject Ho and conclude that there is statistical significance")
+        #         st.write(f"P value is: {result['p_value']:.4f}")
+        #     else:
+        #         st.write("We can not reject Ho and conclude that there is statistical significance")
+        #         st.write(f"P value is: {result['p_value']}")
+        #     st.text("")
+        #     st.divider()
+        #     st.subheader("Deeper Analysis Results:")
+        #     col1, col2 = st.columns(2)
+
+        #     lower_bound = result["lower_bound"]
+        #     upper_bound = result["upper_bound"]
+        #     lower_lift = result["lower_lift"]
+        #     upper_lift = result["upper_lift"]
+        #     col1.metric("Absolute Difference CI", f"({lower_bound:.3f}, {upper_bound:.3f})", "")
+        #     col2.metric("Relative Difference (lift) CI", f"({lower_lift*100:.1f}%, {upper_lift*100:.1f}%)", "")
+        # col3.metric(
+        #     "Confidence interval for the one-tailed test is",
+        #     f"[{result['lower_bound']:.2f}, {result['upper_bound']:.2f}]",
+        # )
 
 
 if __name__ == "__main__":

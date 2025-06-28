@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
 import statsmodels.api as sm
-from scipy.stats import beta, norm
+from scipy.stats import beta, norm, ttest_ind_from_stats
 from statsmodels.stats.power import TTestIndPower, tt_ind_solve_power
 from statsmodels.stats.proportion import (
+    binom_test,
     confint_proportions_2indep,
     proportions_chisquare,
     proportions_ztest,
 )
-from statsmodels.stats.weightstats import ttest_ind
 
 # Now lets simulate with monte carlos
 N_TRIALS = 100000
@@ -22,6 +22,12 @@ ALTERNATIVE_MAPPING = {
     "Two-tailed test": "two-sided",
     "One-tailed test (less)": "smaller",
     "One-tailed test (greater)": "larger",
+}
+
+ALTERNATIVE_MAPPING_TTEST = {
+    "Two-tailed test": "two-sided",
+    "One-tailed test (less)": "less",
+    "One-tailed test (greater)": "greater",
 }
 
 
@@ -107,82 +113,82 @@ def chi_squared_test(control_group, control_successes, variant_group, variant_su
         return "Fail to reject Ho: No statistical significance found."
 
 
-def frequentist_analysis(
-    control_group, control_successes, variant_group, variant_successes, test_type, alpha, statistical_test="t-test"
-):
-    # Calculate the proportions for control and variant groups
-    control_rate = control_successes / control_group
-    variant_rate = variant_successes / variant_group
+# def frequentist_analysis(
+#     control_group, control_successes, variant_group, variant_successes, test_type, alpha, statistical_test="t-test"
+# ):
+#     # Calculate the proportions for control and variant groups
+#     control_rate = control_successes / control_group
+#     variant_rate = variant_successes / variant_group
 
-    if statistical_test == "t-test":
-        # Create arrays of 1s (successes) and 0s (failures) for each group
-        control = np.concatenate([np.ones(control_successes), np.zeros(control_group - control_successes)])
-        variant = np.concatenate([np.ones(variant_successes), np.zeros(variant_group - variant_successes)])
+#     if statistical_test == "t-test":
+#         # Create arrays of 1s (successes) and 0s (failures) for each group
+#         control = np.concatenate([np.ones(control_successes), np.zeros(control_group - control_successes)])
+#         variant = np.concatenate([np.ones(variant_successes), np.zeros(variant_group - variant_successes)])
 
-        # Perform a two-sample t-test (t-test for proportions)
-        t_stat, p_value, degrees_freedom = ttest_ind(control, variant, alternative=ALTERNATIVE_MAPPING[test_type])
-        test_used = "t-test"
+#         # Perform a two-sample t-test (t-test for proportions)
+#         t_stat, p_value, degrees_freedom = ttest_ind(control, variant, alternative=ALTERNATIVE_MAPPING[test_type])
+#         test_used = "t-test"
 
-    elif statistical_test == "z-test":
-        # Prepare data for z-test
-        count = np.array([variant_successes, control_successes])
-        nobs = np.array([variant_group, control_group])
+#     elif statistical_test == "z-test":
+#         # Prepare data for z-test
+#         count = np.array([variant_successes, control_successes])
+#         nobs = np.array([variant_group, control_group])
 
-        # Perform z-test for proportions
-        if test_type == "Two-tailed test":
-            alternative = "two-sided"
-        elif test_type == "One-tailed test (greater)":
-            alternative = "larger"
-        else:  # One-tailed test (variant < control)
-            alternative = "smaller"
+#         # Perform z-test for proportions
+#         if test_type == "Two-tailed test":
+#             alternative = "two-sided"
+#         elif test_type == "One-tailed test (greater)":
+#             alternative = "larger"
+#         else:  # One-tailed test (variant < control)
+#             alternative = "smaller"
 
-        z_stat, p_value = proportions_ztest(count, nobs, alternative=alternative)
-        test_used = "z-test"
+#         z_stat, p_value = proportions_ztest(count, nobs, alternative=alternative)
+#         test_used = "z-test"
 
-    # Adjust for one-tailed or two-tailed test
-    if test_type == "Two-tailed test":
-        # Two-tailed test
-        reject_null_hypothesis = p_value < alpha
-    else:
-        if statistical_test == "t-test":
-            p_value /= 2
+#     # Adjust for one-tailed or two-tailed test
+#     if test_type == "Two-tailed test":
+#         # Two-tailed test
+#         reject_null_hypothesis = p_value < alpha
+#     else:
+#         if statistical_test == "t-test":
+#             p_value /= 2
 
-        # Check if variant_rate > control_rate for one-tailed test direction
-        if test_type == "One-tailed test (greater)":
-            reject_null_hypothesis = (variant_rate > control_rate) and (p_value < alpha)
-        else:  # One-tailed test (less)
-            reject_null_hypothesis = (variant_rate < control_rate) and (p_value < alpha)
+#         # Check if variant_rate > control_rate for one-tailed test direction
+#         if test_type == "One-tailed test (greater)":
+#             reject_null_hypothesis = (variant_rate > control_rate) and (p_value < alpha)
+#         else:  # One-tailed test (less)
+#             reject_null_hypothesis = (variant_rate < control_rate) and (p_value < alpha)
 
-    # Compute the Confidence Interval of the Test using confint_proportions_2indep
-    ci = confint_proportions_2indep(
-        variant_successes,
-        variant_group,
-        control_successes,
-        control_group,
-        method=None,
-        compare="diff",
-        alpha=alpha,
-        correction=True,
-    )
+#     # Compute the Confidence Interval of the Test using confint_proportions_2indep
+#     ci = confint_proportions_2indep(
+#         variant_successes,
+#         variant_group,
+#         control_successes,
+#         control_group,
+#         method=None,
+#         compare="diff",
+#         alpha=alpha,
+#         correction=True,
+#     )
 
-    # Extract the lower and upper bounds of the confidence interval
-    lower = ci[0]
-    upper = ci[1]
+#     # Extract the lower and upper bounds of the confidence interval
+#     lower = ci[0]
+#     upper = ci[1]
 
-    # Calculate the lift (relative change) in the variant group compared to the control group
-    lower_lift = lower / control_rate
-    upper_lift = upper / control_rate
+#     # Calculate the lift (relative change) in the variant group compared to the control group
+#     lower_lift = lower / control_rate
+#     upper_lift = upper / control_rate
 
-    # Return the results
-    return dict(
-        reject_null_hypothesis=reject_null_hypothesis,
-        p_value=round(p_value, 6),
-        lower_bound=round(lower, 6),
-        upper_bound=round(upper, 6),
-        lower_lift=round(lower_lift, 6),
-        upper_lift=round(upper_lift, 6),
-        test_used=test_used,
-    )
+#     # Return the results
+#     return dict(
+#         reject_null_hypothesis=reject_null_hypothesis,
+#         p_value=round(p_value, 6),
+#         lower_bound=round(lower, 6),
+#         upper_bound=round(upper, 6),
+#         lower_lift=round(lower_lift, 6),
+#         upper_lift=round(upper_lift, 6),
+#         test_used=test_used,
+#     )
 
 
 def calculate_sample_size(control_conversion_rate, minimum_detectable_effect, alpha, power):
@@ -343,3 +349,141 @@ def bayes_analysis(
             "variant_beta_post": round(post_var_B, 3),
             "plot": fig,
         }
+
+
+def frequentist_analysis(
+    statistical_test,
+    test_type,
+    alpha,
+    control_group,
+    control_successes=None,
+    variant_group=None,
+    variant_successes=None,
+    variance_known=False,
+    population_variance=None,
+    control_mean=None,
+    control_std=None,
+    variant_mean=None,
+    variant_std=None,
+    population_distribution_normal=True,
+):
+    # Initialize results
+    result = {
+        "reject_null_hypothesis": None,
+        "p_value": None,
+        "lower_bound": None,
+        "upper_bound": None,
+        "lower_lift": None,
+        "upper_lift": None,
+        "test_used": None,
+    }
+
+    if statistical_test == "proportion":
+        control_prop = control_successes / control_group
+
+        if control_group > 10 and variant_group > 10 and control_successes > 10 and variant_successes > 10:
+            # Use z-test for proportions
+            count = np.array([variant_successes, control_successes])
+            nobs = np.array([variant_group, control_group])
+            z_stat, p_value = proportions_ztest(count, nobs, alternative=ALTERNATIVE_MAPPING[test_type])
+            test_used = "z-test"
+        else:
+            # Use binomial test (only supported for one group at a time)
+            p_value = binom_test(
+                variant_successes, variant_group, prop=control_prop, alternative=ALTERNATIVE_MAPPING[test_type]
+            )
+            test_used = "binomial"
+
+        reject = p_value < alpha
+
+        # Compute CI
+        ci = confint_proportions_2indep(
+            variant_successes,
+            variant_group,
+            control_successes,
+            control_group,
+            method=None,
+            alpha=alpha,
+            correction=True,
+        )
+
+        lower, upper = ci
+        lower_lift = lower / control_prop
+        upper_lift = upper / control_prop
+
+    elif statistical_test == "mean":
+        small_sample = control_group < 30 or variant_group < 30
+
+        print(f"population_distribution_normal is: {population_distribution_normal}")
+        print(f"population_distribution_normal is: {population_distribution_normal}")
+        if small_sample and population_distribution_normal != "Normal":
+            return {"error": "Test not supported for small sample and non-normal population distribution."}
+
+        if not small_sample and variance_known == "Known population variance":
+            # Z-test with known population variance (manually compute)
+            print(f"population_variance is: {population_variance}")
+            print(f"control_group is: {control_group}")
+            print(f"population_variance is: {population_variance}")
+            print(f"variant_group is: {variant_group}")
+            pooled_se = np.sqrt((population_variance / control_group) + (population_variance / variant_group))
+            z_score = (variant_mean - control_mean) / pooled_se
+
+            alternative = ALTERNATIVE_MAPPING[test_type]
+            if alternative == "two-sided":
+                p_value = 2 * (1 - norm.cdf(abs(z_score)))
+            elif alternative == "larger":
+                p_value = 1 - norm.cdf(z_score)
+            else:
+                p_value = norm.cdf(z_score)
+
+            test_used = "z-test"
+
+        else:
+            # T-test (Welch’s t-test if std devs differ)
+            t_stat, p_value = ttest_ind_from_stats(
+                mean1=variant_mean,
+                std1=variant_std,
+                nobs1=variant_group,
+                mean2=control_mean,
+                std2=control_std,
+                nobs2=control_group,
+                alternative=ALTERNATIVE_MAPPING_TTEST[test_type],
+            )
+            test_used = "t-test"
+
+        reject = p_value < alpha
+
+        # Confidence interval for difference in means
+        from scipy.stats import t
+
+        dof = min(control_group - 1, variant_group - 1)
+        se = np.sqrt((control_std**2 / control_group) + (variant_std**2 / variant_group))
+        diff = variant_mean - control_mean
+        t_crit = t.ppf(1 - alpha / 2, df=dof) if test_type == "Two-tailed test" else t.ppf(1 - alpha, df=dof)
+        margin = t_crit * se
+        lower = diff - margin
+        upper = (
+            diff + margin
+            if test_type == "Two-tailed test"
+            else diff + (0 if test_type == "One-tailed test (greater)" else 2 * margin)
+        )
+
+        lower_lift = lower / control_mean if control_mean else None
+        upper_lift = upper / control_mean if control_mean else None
+
+    else:
+        return {"error": "Invalid statistical_test. Use 'proportion' or 'mean'."}
+
+    result.update(
+        {
+            "reject_null_hypothesis": reject,
+            "p_value": round(p_value, 6),
+            "lower_bound": round(lower, 6),
+            "upper_bound": round(upper, 6),
+            "lower_lift": round(lower_lift, 6) if lower_lift is not None else None,
+            "upper_lift": round(upper_lift, 6) if upper_lift is not None else None,
+            "test_used": test_used,
+        }
+    )
+
+    return result
