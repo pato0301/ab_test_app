@@ -1,3 +1,5 @@
 abtest_app/
 others/
 .pytest_cache/
+research.txt
+.DS_Store
