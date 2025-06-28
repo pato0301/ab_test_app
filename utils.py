@@ -9,6 +9,7 @@ from statsmodels.stats.power import TTestIndPower, tt_ind_solve_power
 from statsmodels.stats.proportion import (
     confint_proportions_2indep,
     proportions_chisquare,
+    proportions_ztest,
 )
 from statsmodels.stats.weightstats import ttest_ind
 
@@ -76,108 +77,6 @@ def cohen_d_interpretation(d):
         return "Very large effect."
 
 
-# def bayes_analysis(
-#     base_suc_rate, control_group, variant_group, control_successes, variant_successes, lift_percent_desired
-# ):
-#     print(f"lift_percent_desired: {lift_percent_desired}")
-#     print(f"base_suc_rate: {base_suc_rate}")
-#     base_fail_rate = 100 - base_suc_rate
-#     suc_control_group, fail_control_group = control_successes, control_group - control_successes
-#     suc_variant_group, fail_variant_group = variant_successes, variant_group - variant_successes
-
-#     # Update our prior
-#     alfa_control, beta_control = base_suc_rate + suc_control_group, base_fail_rate + fail_control_group
-#     alfa_test, beta_test = base_suc_rate + suc_variant_group, base_fail_rate + fail_variant_group
-
-#     A_posterior = beta(alfa_control, beta_control)  # Posterior = Prios + A's data
-#     B_posterior = beta(alfa_test, beta_test)  # Posterior = Prios + B's data
-
-#     A_sample = pd.Series(A_posterior.rvs(100000))
-#     B_sample = pd.Series(B_posterior.rvs(100000))
-
-#     # how many times did B outperform A?
-#     variant_wins = sum(B_sample > A_sample)
-#     result_variant_wins = variant_wins / N_TRIALS
-
-#     # What is the probability of X% improvement
-#     lift_percentage = (B_sample - A_sample) / A_sample
-#     lift_percent_result = np.mean((100 * lift_percentage) > lift_percent_desired) * 100
-
-#     # Get confidence level
-#     variant_up_test = betaincinv(alfa_test, beta_test, 0.975)
-#     variant_low_test = betaincinv(alfa_test, beta_test, 0.25)
-
-#     control_up_control = betaincinv(alfa_control, beta_control, 0.975)
-#     control_low_control = betaincinv(alfa_control, beta_control, 0.25)
-
-#     # Get cohen d
-#     d = cohend(A_sample, B_sample)
-
-#     return dict(
-#         cohen_d=d,
-#         cohen_d_humanize=cohen_d_interpretation(d),
-#         conf_interval=(
-#             (round(control_low_control * 100, 2), (round(control_up_control * 100, 2))),
-#             (round(variant_low_test * 100, 2), round(variant_up_test * 100, 2)),
-#         ),
-#         perc_improvement=lift_percent_result,
-#         result_variant_wins_times=round(result_variant_wins * 100, 6),
-#         pValueEquivalent=round(1 - result_variant_wins, 6),
-#     )
-
-
-# def frequentist_analysis(control_group, control_successes, variant_group, variant_successes, test_type):
-#     # Split the data into two groups (control and variant)
-#     # print(variant_group,variant_successes)
-#     control = np.array(generate_array(control_group, control_successes))
-#     variant = np.array(generate_array(variant_group, variant_successes))
-
-#     # Calculate the conversion rates for each group
-#     control_rate = np.mean(control)
-#     variant_rate = np.mean(variant)
-
-#     # Calculate the pooled standard error
-#     pooled_se = np.sqrt(
-#         (control_rate * (1 - control_rate) / control_group) + (variant_rate * (1 - variant_rate) / variant_group)
-#     )
-
-#     # Calculate the z-score and p-value
-#     z_score = (variant_rate - control_rate) / pooled_se
-#     ci_control = st.t.interval(0.95, control_group - 1, loc=control_rate, scale=st.sem(control))
-#     # Round the values in ci_control to three decimal points
-#     ci_control_rounded = tuple(round(value, 3) for value in ci_control)
-
-#     # ci_variant = st.t.interval(0.95, variant_group - 1, loc=variant_rate, scale=st.sem(variant))
-#     # Round the values in ci_control to three decimal points
-#     ci_variant_rounded = tuple(round(value, 3) for value in ci_control)
-
-#     if test_type == "One-tailed test":
-#         # Calculate the p-value
-#         p_value = st.norm.sf(z_score)  # one-tailed test
-#         # Calculate the confidence interval
-#         margin_of_error_one = st.norm.ppf(1 - ALPHA) * pooled_se
-#         lower_bound = (variant_rate - control_rate) - margin_of_error_one
-#         upper_bound = (variant_rate - control_rate) + margin_of_error_one
-#         reject_null_hypothesis = p_value < ALPHA
-#     elif test_type == "Two-tailed test":
-#         # Calculate the p-value
-#         p_value = st.norm.sf(abs(z_score)) * 2  # two-tailed test
-#         # Calculate the confidence interval
-#         margin_of_error_two = st.norm.ppf(1 - ALPHA / 2) * pooled_se
-#         lower_bound = (variant_rate - control_rate) - margin_of_error_two
-#         upper_bound = (variant_rate - control_rate) + margin_of_error_two
-#         reject_null_hypothesis = p_value < ALPHA
-
-#     return dict(
-#         reject_null_hypothesis=reject_null_hypothesis,
-#         p_value=round(p_value, 4),
-#         ci_control=ci_control_rounded,
-#         ci_variant=ci_variant_rounded,
-#         lower_bound=lower_bound,
-#         upper_bound=upper_bound,
-#     )
-
-
 def sample_ratio_mismatch(control_group_observations, variant_group_observations, percent_of_variant, srm_alpha):
     observed = np.array([control_group_observations, variant_group_observations])
     total_observed = control_group_observations + variant_group_observations
@@ -208,33 +107,51 @@ def chi_squared_test(control_group, control_successes, variant_group, variant_su
         return "Fail to reject Ho: No statistical significance found."
 
 
-# Example usage:
-# chi_squared_test(1000, 200, 1200, 250, AB_test, AB_ALPHA=0.05)
-
-
-def frequentist_analysis(control_group, control_successes, variant_group, variant_successes, test_type, alpha):
+def frequentist_analysis(
+    control_group, control_successes, variant_group, variant_successes, test_type, alpha, statistical_test="t-test"
+):
     # Calculate the proportions for control and variant groups
     control_rate = control_successes / control_group
     variant_rate = variant_successes / variant_group
 
-    # Create arrays of 1s (successes) and 0s (failures) for each group
-    control = np.concatenate([np.ones(control_successes), np.zeros(control_group - control_successes)])
-    variant = np.concatenate([np.ones(variant_successes), np.zeros(variant_group - variant_successes)])
+    if statistical_test == "t-test":
+        # Create arrays of 1s (successes) and 0s (failures) for each group
+        control = np.concatenate([np.ones(control_successes), np.zeros(control_group - control_successes)])
+        variant = np.concatenate([np.ones(variant_successes), np.zeros(variant_group - variant_successes)])
 
-    # Perform a two-sample t-test (t-test for proportions)
-    t_stat, p_value, degrees_freedom = ttest_ind(control, variant, alternative=ALTERNATIVE_MAPPING[test_type])
+        # Perform a two-sample t-test (t-test for proportions)
+        t_stat, p_value, degrees_freedom = ttest_ind(control, variant, alternative=ALTERNATIVE_MAPPING[test_type])
+        test_used = "t-test"
+
+    elif statistical_test == "z-test":
+        # Prepare data for z-test
+        count = np.array([variant_successes, control_successes])
+        nobs = np.array([variant_group, control_group])
+
+        # Perform z-test for proportions
+        if test_type == "Two-tailed test":
+            alternative = "two-sided"
+        elif test_type == "One-tailed test (greater)":
+            alternative = "larger"
+        else:  # One-tailed test (variant < control)
+            alternative = "smaller"
+
+        z_stat, p_value = proportions_ztest(count, nobs, alternative=alternative)
+        test_used = "z-test"
 
     # Adjust for one-tailed or two-tailed test
     if test_type == "Two-tailed test":
         # Two-tailed test
         reject_null_hypothesis = p_value < alpha
     else:
-        p_value /= 2  # One-tailed test halves the p-value
+        if statistical_test == "t-test":
+            p_value /= 2
+
         # Check if variant_rate > control_rate for one-tailed test direction
-        if variant_rate > control_rate:
-            reject_null_hypothesis = p_value < alpha
-        else:
-            reject_null_hypothesis = False
+        if test_type == "One-tailed test (greater)":
+            reject_null_hypothesis = (variant_rate > control_rate) and (p_value < alpha)
+        else:  # One-tailed test (less)
+            reject_null_hypothesis = (variant_rate < control_rate) and (p_value < alpha)
 
     # Compute the Confidence Interval of the Test using confint_proportions_2indep
     ci = confint_proportions_2indep(
@@ -264,6 +181,7 @@ def frequentist_analysis(control_group, control_successes, variant_group, varian
         upper_bound=round(upper, 6),
         lower_lift=round(lower_lift, 6),
         upper_lift=round(upper_lift, 6),
+        test_used=test_used,
     )
 
 

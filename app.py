@@ -107,6 +107,12 @@ def analysis_section(analysis_type):
 
     if analysis_type == "Frequentist Analysis":
         test_type = st.selectbox("Select your test type", FREQUENTIST_OPTIONS)
+        statistical_test = st.selectbox(
+            "Select Statistical Test:",
+            ["t-test", "z-test"],
+            help="""t-test: Better for smaller samples or when population variance is unknown.
+            z-test: Better for larger samples (n>30) when population variance is known or sample size is large enough.""",
+        )
 
     col1, col2 = st.columns(2)
     with col1:
@@ -286,7 +292,7 @@ def analysis_section(analysis_type):
         print(f"enter frequentist with {analisis_name}")
         if st.button(f"Run {analisis_name} Analysis", key="frequentist"):
             result = frequentist_analysis(
-                control_group, control_successes, variant_group, variant_successes, test_type, alpha
+                control_group, control_successes, variant_group, variant_successes, test_type, alpha, statistical_test
             )
             st.header("Frequentist Analysis Result:")
             st.subheader("Recomendation:")
@@ -300,7 +306,7 @@ def analysis_section(analysis_type):
             st.divider()
             st.subheader("Deeper Analysis Results:")
             col1, col2 = st.columns(2)
-            # print(result['ci_control'])
+
             lower_bound = result["lower_bound"]
             upper_bound = result["upper_bound"]
             lower_lift = result["lower_lift"]
